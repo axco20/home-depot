@@ -146,7 +146,9 @@ class StockClient:
 
 class RouteCache:
     def __init__(self) -> None:
-        configured = os.getenv("STOCKPATH_DB", "backend/stockpath.sqlite3")
+        configured = os.getenv("STOCKPATH_DB")
+        if not configured:
+            configured = "/tmp/stockpath.sqlite3" if os.getenv("VERCEL") else "backend/stockpath.sqlite3"
         self.path = Path(configured)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
