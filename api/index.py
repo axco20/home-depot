@@ -1,30 +1,48 @@
 """Vercel serverless entrypoint for the StockPath FastAPI application."""
 
+import json
 import sys
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+
+class StartupDiagnosticApp:
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+
+    async def __call__(
+        self,
+        scope: dict[str, Any],
+        receive: Any,
+        send: Any,
+    ) -> None:
+        body = json.dumps(
+            {
+                "detail": "API failed to start",
+                "errorType": type(self.error).__name__,
+                "message": str(self.error),
+            }
+        ).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 500,
+                "headers": [(b"content-type", b"application/json")],
+            }
+        )
+        await send({"type": "http.response.body", "body": body})
+
 
 project_root = str(Path(__file__).resolve().parents[1])
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-app = FastAPI()
+app = StartupDiagnosticApp(RuntimeError("Backend import did not run"))
 
 try:
     from backend.main import app as backend_app
-except Exception as exc:  # pragma: no cover - only exercised by the deployment runtime
-    startup_error = {
-        "errorType": type(exc).__name__,
-        "message": str(exc),
-    }
-    @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
-    async def report_startup_error(path: str) -> JSONResponse:
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "API failed to start", **startup_error},
-        )
+except BaseException as exc:  # pragma: no cover - only exercised by the deployment runtime
+    app = StartupDiagnosticApp(exc)
 else:
     app = backend_app
 
