@@ -1,0 +1,2 @@
+"""StockPath backend package."""
+
