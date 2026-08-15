@@ -21,7 +21,7 @@ class VercelEntrypointTests(unittest.TestCase):
         self.assertIn(
             {
                 "source": "/api/(.*)",
-                "destination": "/api/index.py",
+                "destination": "/api",
             },
             config["rewrites"],
         )
